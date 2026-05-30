@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Redirect Detective</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Syne:wght@600;700&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0f14;
+      --bg2: #111318;
+      --surface: #181b24;
+      --surface2: #1e2130;
+      --surface3: #252838;
+      --border: rgba(255,255,255,0.07);
+      --border2: rgba(255,255,255,0.13);
+      --border3: rgba(255,255,255,0.2);
+      --text: #e8eaf2;
+      --muted: #8b8fa8;
+      --hint: #4e5168;
+      --accent: #7c6af7;
+      --accent2: #a78bfa;
+      --accent-bg: rgba(124,106,247,0.12);
+      --accent-border: rgba(124,106,247,0.28);
+      --teal: #2dd4bf;
+      --teal-bg: rgba(45,212,191,0.08);
+      --teal-border: rgba(45,212,191,0.22);
+      --green: #4ade80;
+      --green-bg: rgba(74,222,128,0.08);
+      --green-border: rgba(74,222,128,0.22);
+      --amber: #fbbf24;
+      --amber-bg: rgba(251,191,36,0.1);
+      --amber-border: rgba(251,191,36,0.25);
+      --red: #f87171;
+      --red-bg: rgba(248,113,113,0.1);
+      --red-border: rgba(248,113,113,0.25);
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'DM Sans', system-ui, sans-serif;
+      --display: 'Syne', sans-serif;
+      --r: 10px;
+      --rl: 16px;
+    }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 52px 16px 80px;
+      background-image:
+        radial-gradient(ellipse 55% 35% at 75% 0%, rgba(124,106,247,0.13) 0%, transparent 60%),
+        radial-gradient(ellipse 35% 25% at 5% 85%, rgba(45,212,191,0.08) 0%, transparent 55%);
+    }
+
+    /* ── HEADER ── */
+    header { text-align: center; margin-bottom: 40px; }
+    .logo { display:inline-flex; align-items:center; gap:11px; margin-bottom:10px; }
+    .logo-icon {
+      width:40px; height:40px; border-radius:12px;
+      background: linear-gradient(135deg,#7c6af7,#2dd4bf);
+      display:flex; align-items:center; justify-content:center; font-size:20px;
+    }
+    h1 {
+      font-family: var(--display); font-size:30px; font-weight:700; letter-spacing:-0.5px;
+      background: linear-gradient(120deg,#e8eaf2 40%,var(--accent2) 100%);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    }
+    .tagline { font-size:14px; color:var(--muted); }
+
+    /* ── MAIN CARD ── */
+    .card {
+      width:100%; max-width:760px;
+      background:var(--surface); border:0.5px solid var(--border2);
+      border-radius:var(--rl); overflow:hidden;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.5), 0 28px 56px rgba(0,0,0,0.45);
+    }
+
+    /* ── INPUT ── */
+    .input-area { padding:20px; background:var(--bg2); border-bottom:0.5px solid var(--border); }
+    .input-row { display:flex; gap:8px; }
+
+    input[type=text] {
+      flex:1; height:42px; padding:0 14px;
+      font-family:var(--mono); font-size:12px;
+      background:var(--surface2); border:0.5px solid var(--border2);
+      border-radius:var(--r); color:var(--text); outline:none;
+      transition:border-color .18s, box-shadow .18s;
+    }
+    input[type=text]::placeholder { color:var(--hint); }
+    input[type=text]:focus {
+      border-color:var(--accent);
+      box-shadow:0 0 0 3px rgba(124,106,247,.15);
+    }
+
+    .btn-primary {
+      height:42px; padding:0 22px;
+      font-family:var(--sans); font-size:13px; font-weight:500;
+      background:linear-gradient(135deg,var(--accent),#5a4de0);
+      color:#fff; border:none; border-radius:var(--r);
+      cursor:pointer; white-space:nowrap;
+      box-shadow:0 4px 16px rgba(124,106,247,.35);
+      transition:opacity .15s, transform .1s;
+    }
+    .btn-primary:hover { opacity:.88; }
+    .btn-primary:active { transform:scale(.97); opacity:.8; }
+    .btn-primary:disabled { opacity:.4; cursor:not-allowed; }
+
+    .btn-ghost {
+      height:30px; padding:0 13px;
+      font-family:var(--sans); font-size:12px; font-weight:400;
+      background:transparent; color:var(--muted);
+      border:0.5px solid var(--border2); border-radius:100px;
+      cursor:pointer; transition:background .15s, color .15s;
+    }
+    .btn-ghost:hover { background:var(--surface3); color:var(--text); }
+
+    .btn-row { display:flex; gap:8px; margin-top:10px; }
+
+    /* ── STATUS ── */
+    .status-bar {
+      display:none; padding:11px 20px;
+      font-size:12.5px; color:var(--muted);
+      background:var(--bg2); border-bottom:0.5px solid var(--border);
+      align-items:center; gap:9px;
+    }
+    .spinner {
+      width:13px; height:13px; flex-shrink:0;
+      border:1.5px solid var(--border2); border-top-color:var(--accent);
+      border-radius:50%; animation:spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* ── ERROR ── */
+    .error-bar {
+      display:none; padding:11px 20px;
+      font-size:12.5px; color:var(--red);
+      background:var(--red-bg); border-bottom:0.5px solid var(--red-border);
+      align-items:center; gap:9px;
+    }
+
+    /* ── STATS ── */
+    .stats-grid {
+      display:grid; grid-template-columns:repeat(3,1fr);
+      border-bottom:0.5px solid var(--border);
+    }
+    .stat-cell { padding:15px 20px; border-right:0.5px solid var(--border); }
+    .stat-cell:last-child { border-right:none; }
+    .stat-label { font-size:10px; color:var(--hint); text-transform:uppercase; letter-spacing:.8px; margin-bottom:5px; }
+    .stat-value { font-family:var(--display); font-size:23px; font-weight:700; }
+    .stat-value.small { font-family:var(--mono); font-size:12px; color:var(--teal); padding-top:5px; line-height:1.4; }
+    .stat-value.safe { color:var(--green); }
+    .stat-value.warn { color:var(--amber); }
+    .stat-value.danger { color:var(--red); }
+
+    /* ── SECTION HEADER ── */
+    .sec-hdr {
+      padding:11px 20px; background:var(--bg2);
+      border-bottom:0.5px solid var(--border);
+      font-size:10px; font-weight:500; color:var(--hint);
+      text-transform:uppercase; letter-spacing:.9px;
+    }
+
+    /* ── CHAIN ── */
+    .chain-body { padding:20px; }
+    .hop { display:flex; align-items:flex-start; gap:14px; }
+    .hop-spine { display:flex; flex-direction:column; align-items:center; flex-shrink:0; }
+    .hop-num {
+      width:28px; height:28px; border-radius:50%;
+      background:var(--surface3); border:0.5px solid var(--border2);
+      display:flex; align-items:center; justify-content:center;
+      font-size:11px; font-weight:500; color:var(--muted);
+    }
+    .hop-num.is-final { background:var(--green-bg); border-color:var(--green-border); color:var(--green); }
+    .hop-line {
+      width:1px; min-height:20px; flex:1;
+      background:linear-gradient(to bottom,var(--border2),transparent);
+      margin:4px 0;
+    }
+    .hop-content { flex:1; min-width:0; padding-top:3px; padding-bottom:20px; }
+    .hop-content.last { padding-bottom:0; }
+    .hop-meta { display:flex; align-items:center; gap:6px; margin-bottom:6px; flex-wrap:wrap; }
+
+    .badge {
+      font-size:10px; padding:2px 8px; border-radius:100px;
+      font-weight:500; letter-spacing:.2px;
+    }
+    .b-gray  { background:var(--surface3); border:0.5px solid var(--border2); color:var(--muted); }
+    .b-purple { background:var(--accent-bg); border:0.5px solid var(--accent-border); color:var(--accent2); }
+    .b-teal  { background:var(--teal-bg); border:0.5px solid var(--teal-border); color:var(--teal); }
+    .b-green { background:var(--green-bg); border:0.5px solid var(--green-border); color:var(--green); }
+    .b-amber { background:var(--amber-bg); border:0.5px solid var(--amber-border); color:var(--amber); }
+    .b-red   { background:var(--red-bg); border:0.5px solid var(--red-border); color:var(--red); }
+
+    .domain-tag { font-size:10.5px; color:var(--hint); font-family:var(--mono); }
+
+    .url-box {
+      font-family:var(--mono); font-size:11.5px; word-break:break-all;
+      line-height:1.75; color:var(--text);
+      background:var(--surface2); border:0.5px solid var(--border);
+      padding:9px 38px 9px 12px; border-radius:var(--r);
+      cursor:pointer; position:relative;
+      transition:border-color .15s, background .15s;
+    }
+    .url-box:hover { border-color:var(--border2); background:var(--surface3); }
+    .copy-hint { position:absolute; top:8px; right:10px; font-size:13px; opacity:.22; pointer-events:none; }
+
+    /* ── HTTP hop extra info ── */
+    .hop-detail {
+      display:flex; gap:6px; margin-top:5px; flex-wrap:wrap; align-items:center;
+    }
+    .http-code {
+      font-family:var(--mono); font-size:10px; padding:2px 7px;
+      border-radius:4px; font-weight:500;
+    }
+    .code-301,.code-302,.code-307,.code-308 { background:var(--accent-bg); color:var(--accent2); border:0.5px solid var(--accent-border); }
+    .code-200 { background:var(--green-bg); color:var(--green); border:0.5px solid var(--green-border); }
+    .code-err { background:var(--red-bg); color:var(--red); border:0.5px solid var(--red-border); }
+
+    /* ── FINAL ── */
+    .final-wrap {
+      margin:0 20px 20px;
+      background:var(--surface2); border:0.5px solid var(--teal-border);
+      border-radius:var(--r); overflow:hidden;
+    }
+    .final-hdr {
+      padding:10px 14px; background:var(--teal-bg);
+      border-bottom:0.5px solid var(--teal-border);
+      font-size:11px; font-weight:500; color:var(--teal);
+      text-transform:uppercase; letter-spacing:.8px;
+    }
+    .final-url-text {
+      padding:12px 14px; font-family:var(--mono); font-size:12px;
+      word-break:break-all; line-height:1.75; color:var(--text); user-select:all;
+    }
+    .final-actions {
+      padding:10px 14px; border-top:0.5px solid var(--border);
+      display:flex; flex-wrap:wrap; gap:8px;
+    }
+    .act-btn {
+      height:28px; padding:0 12px; font-size:11.5px; font-family:var(--sans);
+      border-radius:100px; cursor:pointer; display:inline-flex;
+      align-items:center; gap:5px; text-decoration:none; transition:all .15s;
+    }
+    .act-copy { background:var(--accent-bg); border:0.5px solid var(--accent-border); color:var(--accent2); }
+    .act-copy:hover { background:rgba(124,106,247,.2); }
+    .act-open { background:transparent; border:0.5px solid var(--border2); color:var(--muted); }
+    .act-open:hover { background:var(--surface3); color:var(--text); }
+
+    /* ── HISTORY ── */
+    .history-section { border-top:0.5px solid var(--border); }
+    .history-list { padding:0; }
+    .history-item {
+      display:flex; align-items:center; gap:10px;
+      padding:10px 20px; border-bottom:0.5px solid var(--border);
+      cursor:pointer; transition:background .12s;
+    }
+    .history-item:last-child { border-bottom:none; }
+    .history-item:hover { background:var(--surface2); }
+    .history-dot {
+      width:7px; height:7px; border-radius:50%; flex-shrink:0;
+    }
+    .h-safe { background:var(--green); }
+    .h-warn { background:var(--amber); }
+    .h-err  { background:var(--red); }
+    .history-url {
+      flex:1; font-family:var(--mono); font-size:11px; color:var(--muted);
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    }
+    .history-dest {
+      font-family:var(--mono); font-size:10.5px; color:var(--teal);
+      flex-shrink:0; max-width:160px; overflow:hidden;
+      text-overflow:ellipsis; white-space:nowrap;
+    }
+    .history-clear {
+      padding:8px 20px; font-size:11px; color:var(--hint);
+      cursor:pointer; text-align:right; display:block;
+      border-top:0.5px solid var(--border);
+      transition:color .12s;
+    }
+    .history-clear:hover { color:var(--red); }
+
+    /* ── RESULTS hidden by default ── */
+    .results { display:none; }
+
+    footer { margin-top:28px; font-size:11px; color:var(--hint); text-align:center; line-height:1.8; }
+
+    @media (max-width:520px) {
+      .stats-grid { grid-template-columns:1fr 1fr; }
+      .stat-cell:nth-child(3) { grid-column:span 2; border-right:none; border-top:0.5px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🔍</div>
+    <h1>Redirect Detective</h1>
+  </div>
+  <p class="tagline">Reveal the true destination behind any redirect or short link</p>
+</header>
+
+<div class="card" id="mainCard">
+
+  <!-- Input -->
+  <div class="input-area">
+    <div class="input-row">
+      <input type="text" id="urlInput" placeholder="Paste a URL — youtube.com/redirect, bit.ly, t.co, youtu.be …" />
+      <button class="btn-primary" id="analyzeBtn" onclick="analyzeUrl()">Analyze →</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn-ghost" onclick="loadExample('yt')">YouTube example</button>
+      <button class="btn-ghost" onclick="loadExample('bitly')">bit.ly example</button>
+      <button class="btn-ghost" onclick="clearAll()">Clear</button>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="status-bar" id="statusBar" style="display:flex;display:none;">
+    <div class="spinner"></div>
+    <span id="statusText">Resolving redirect chain…</span>
+  </div>
+
+  <!-- Error -->
+  <div class="error-bar" id="errorBar" style="display:flex;display:none;">
+    <span>⚠</span><span id="errorText"></span>
+  </div>
+
+  <!-- Results -->
+  <div class="results" id="results">
+    <div class="stats-grid" id="statsRow"></div>
+    <div class="sec-hdr">Redirect chain</div>
+    <div class="chain-body" id="chain"></div>
+    <div id="finalSection" style="display:none;">
+      <div class="sec-hdr">Final destination</div>
+      <div class="final-wrap">
+        <div class="final-hdr">✓ Resolved URL</div>
+        <div class="final-url-text" id="finalUrlText"></div>
+        <div class="final-actions" id="finalActions"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="history-section" id="historySection" style="display:none;">
+    <div class="sec-hdr">Recent lookups</div>
+    <div class="history-list" id="historyList"></div>
+    <span class="history-clear" onclick="clearHistory()">Clear history</span>
+  </div>
+
+</div>
+
+<footer>
+  Runs entirely in your browser — nothing is sent to any server.<br>
+  HTTP redirect resolution uses the <a href="https://unshorten.me" target="_blank" style="color:var(--muted);text-decoration:underline;">unshorten.me</a> public API.
+</footer>
+
+<script>
+const EXAMPLES = {
+  yt: "https://www.youtube.com/redirect?event=video_description&redir_token=QUFFLUhqbG9IMm5iT3VJVGw2QUlFWkNobGZlWmJwUG85d3xBQ3Jtc0tuUi15OGkyZzFINWY4dTdmYnZmQzdKanhXRk9NcVJFQ3VtUXZKQ29xYjFDeGFCSnJFeWVsVFdWQ2RueXJOT0FubWI1YzZBeXd6WUNGdG5wWjR0UUhUV3h2NXJoUUpVMkw1TnUySDk5OWNuUmdyUF9WSQ&q=https%3A%2F%2Fgithub.com%2Fdavidbombal%2Fsni-dns-python-scripts%2Fblob%2Fmain%2Fsni_filter.py&v=FBwHNMgxmhI",
+  bitly: "https://bit.ly/3QkLmNP"
+};
+
+// ── HISTORY (localStorage) ──────────────────────────────────────────
+const HISTORY_KEY = 'rd_history';
+
+function loadHistoryData() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
+}
+
+function saveToHistory(entry) {
+  let h = loadHistoryData();
+  h = h.filter(x => x.input !== entry.input);
+  h.unshift(entry);
+  if (h.length > 10) h = h.slice(0, 10);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
+  renderHistory();
+}
+
+function renderHistory() {
+  const h = loadHistoryData();
+  const sec = document.getElementById('historySection');
+  const list = document.getElementById('historyList');
+  if (!h.length) { sec.style.display = 'none'; return; }
+  sec.style.display = 'block';
+  list.innerHTML = h.map(e => `
+    <div class="history-item" onclick="reuseHistory('${e.input.replace(/'/g,"\\'")}')">
+      <div class="history-dot ${e.safe ? 'h-safe' : 'h-warn'}"></div>
+      <div class="history-url">${e.input}</div>
+      <div class="history-dest">${getDomain(e.final)}</div>
+    </div>
+  `).join('');
+}
+
+function clearHistory() {
+  localStorage.removeItem(HISTORY_KEY);
+  renderHistory();
+}
+
+function reuseHistory(url) {
+  document.getElementById('urlInput').value = url;
+  analyzeUrl();
+}
+
+// ── URL HELPERS ─────────────────────────────────────────────────────
+function getDomain(url) {
+  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; }
+}
+
+// ── PLATFORM PARSERS ────────────────────────────────────────────────
+// Each parser returns { label, next } or null.
+// label = human-readable platform name shown as badge
+// next  = resolved URL (string) if extractable client-side, else null
+
+const PLATFORM_PARSERS = [
+
+  // ── YouTube ──────────────────────────────────────────────────────
+  {
+    name: 'YouTube redirect',
+    match: u => u.hostname.includes('youtube.com') && u.pathname === '/redirect',
+    parse: u => {
+      const q = u.searchParams.get('q');
+      return q ? { label: 'YouTube redirect', next: decodeURIComponent(q) } : null;
+    }
+  },
+  {
+    name: 'youtu.be',
+    match: u => u.hostname === 'youtu.be',
+    parse: u => ({ label: 'YouTube short', next: 'https://www.youtube.com/watch?v=' + u.pathname.slice(1) })
+  },
+
+  // ── Google ───────────────────────────────────────────────────────
+  {
+    name: 'Google redirect',
+    match: u => u.hostname.includes('google.') && u.pathname === '/url',
+    parse: u => {
+      const q = u.searchParams.get('q') || u.searchParams.get('url');
+      return q ? { label: 'Google redirect', next: decodeURIComponent(q) } : null;
+    }
+  },
+  {
+    name: 'Google AMP',
+    match: u => u.hostname.includes('google.') && u.pathname.startsWith('/amp/'),
+    parse: u => {
+      const raw = u.pathname.replace('/amp/s/', '').replace('/amp/', '');
+      return raw ? { label: 'Google AMP', next: 'https://' + raw } : null;
+    }
+  },
+
+  // ── Facebook ─────────────────────────────────────────────────────
+  {
+    name: 'Facebook redirect',
+    match: u => (u.hostname === 'l.facebook.com' || u.hostname === 'lm.facebook.com'),
+    parse: u => {
+      const q = u.searchParams.get('u');
+      return q ? { label: 'Facebook redirect', next: decodeURIComponent(q) } : null;
+    }
+  },
+  {
+    name: 'Facebook share',
+    match: u => u.hostname === 'www.facebook.com' && u.pathname === '/l.php',
+    parse: u => {
+      const q = u.searchParams.get('u');
+      return q ? { label: 'Facebook share', next: decodeURIComponent(q) } : null;
+    }
+  },
+
+  // ── Instagram ────────────────────────────────────────────────────
+  {
+    name: 'Instagram redirect',
+    match: u => u.hostname === 'l.instagram.com',
+    parse: u => {
+      const q = u.searchParams.get('u');
+      return q ? { label: 'Instagram redirect', next: decodeURIComponent(q) } : null;
+    }
+  },
+
+  // ── Twitter / X ──────────────────────────────────────────────────
+  {
+    name: 'Twitter/X redirect',
+    match: u => u.hostname === 't.co',
+    parse: () => ({ label: 'Twitter/X short', next: null }) // needs HTTP
+  },
+
+  // ── LinkedIn ─────────────────────────────────────────────────────
+  {
+    name: 'LinkedIn redirect',
+    match: u => u.hostname === 'www.linkedin.com' && u.pathname.startsWith('/redir/'),
+    parse: u => {
+      const q = u.searchParams.get('url');
+      return q ? { label: 'LinkedIn redirect', next: decodeURIComponent(q) } : null;
+    }
+  },
+  {
+    name: 'LinkedIn short',
+    match: u => u.hostname === 'lnkd.in',
+    parse: () => ({ label: 'LinkedIn short', next: null })
+  },
+
+  // ── AliExpress ───────────────────────────────────────────────────
+  {
+    name: 'AliExpress affiliate',
+    match: u => u.hostname === 's.click.aliexpress.com' || u.hostname === 'click.aliexpress.com',
+    parse: u => {
+      const q = u.searchParams.get('dl_target_url') || u.searchParams.get('af_dp') || u.searchParams.get('url');
+      return { label: 'AliExpress affiliate', next: q ? decodeURIComponent(q) : null };
+    }
+  },
+  {
+    name: 'AliExpress redirect',
+    match: u => u.hostname.includes('aliexpress.com') && u.pathname.startsWith('/o/'),
+    parse: () => ({ label: 'AliExpress redirect', next: null })
+  },
+
+  // ── Amazon ───────────────────────────────────────────────────────
+  {
+    name: 'Amazon affiliate',
+    match: u => u.hostname.includes('amazon.') && (u.pathname.startsWith('/exec/obidos') || u.searchParams.has('tag')),
+    parse: u => {
+      const asin = u.pathname.match(/\/(?:dp|gp\/product)\/([A-Z0-9]{10})/);
+      if (asin) return { label: 'Amazon affiliate', next: `https://www.amazon.com/dp/${asin[1]}` };
+      return { label: 'Amazon affiliate', next: null };
+    }
+  },
+
+  // ── Telegram ─────────────────────────────────────────────────────
+  {
+    name: 'Telegram redirect',
+    match: u => u.hostname === 't.me' || u.hostname === 'telegram.me',
+    parse: u => ({ label: 'Telegram link', next: null })
+  },
+
+  // ── WhatsApp ─────────────────────────────────────────────────────
+  {
+    name: 'WhatsApp redirect',
+    match: u => u.hostname === 'wa.me' || u.hostname === 'api.whatsapp.com',
+    parse: u => {
+      const phone = u.pathname.replace('/', '');
+      return { label: 'WhatsApp link', next: phone ? `https://wa.me/${phone}` : null };
+    }
+  },
+
+  // ── Generic URL shorteners (need HTTP) ──────────────────────────
+  {
+    name: 'Short link',
+    match: u => {
+      const SHORT = ['bit.ly','tinyurl.com','ow.ly','rb.gy','goo.gl','is.gd',
+        'buff.ly','dlvr.it','ift.tt','short.link','tiny.cc','cutt.ly',
+        'shorturl.at','rebrand.ly','bl.ink','snip.ly','clck.ru','qr.ae',
+        'b23.tv','amzn.to','amzn.eu','ali.ski','s.id','v.gd','x.co',
+        'po.st','fur.ly','adf.ly','bc.vc','trib.al','go2.do'];
+      const d = u.hostname.replace(/^www\./, '');
+      return SHORT.some(s => d === s || d.endsWith('.'+s));
+    },
+    parse: () => ({ label: 'Short link', next: null })
+  },
+];
+
+function detectPlatform(url) {
+  try {
+    const u = new URL(url);
+    for (const p of PLATFORM_PARSERS) {
+      if (p.match(u)) return p.parse(u);
+    }
+  } catch {}
+  return null;
+}
+
+function trustScore(chain) {
+  const final = chain[chain.length - 1].url;
+  const d = getDomain(final);
+  const SAFE = ['github.com','stackoverflow.com','wikipedia.org','google.com',
+    'youtube.com','twitter.com','x.com','reddit.com','medium.com','npmjs.com',
+    'amazon.com','aliexpress.com','linkedin.com','instagram.com','facebook.com'];
+  if (SAFE.some(s => d === s || d.endsWith('.'+s))) return 'safe';
+  if (chain.length > 4) return 'warn';
+  return 'safe';
+}
+
+// ── RESOLUTION ──────────────────────────────────────────────────────
+async function resolveChain(startUrl) {
+  const chain = [];
+  const seen = new Set();
+  let current = startUrl.trim();
+  let maxHops = 8;
+
+  while (maxHops-- > 0) {
+    if (seen.has(current)) break;
+    seen.add(current);
+
+    const detected = detectPlatform(current);
+
+    if (!detected) {
+      // Unknown URL — just mark as final
+      chain.push({ url: current, label: chain.length === 0 ? 'Direct URL' : 'Final destination', method: chain.length === 0 ? 'direct' : 'final' });
+      break;
+    }
+
+    if (detected.next) {
+      // We resolved it client-side
+      chain.push({ url: current, label: detected.label, method: 'parsed' });
+      current = detected.next;
+      continue;
+    }
+
+    // Needs HTTP resolution
+    chain.push({ url: current, label: detected.label, method: 'http' });
+    setStatus(`Resolving ${detected.label} via unshorten.me…`);
+    try {
+      const resp = await fetch(`https://unshorten.me/json/${encodeURIComponent(current)}`);
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.resolved_url && data.resolved_url !== current) {
+          current = data.resolved_url;
+          continue;
+        }
+      }
+    } catch {}
+    // Could not resolve further
+    chain.push({ url: current, label: 'Final destination', method: 'final' });
+    break;
+  }
+
+  // Ensure last item is marked final
+  if (chain.length > 0) {
+    chain[chain.length - 1].label = chain.length === 1 ? (chain[0].label || 'Direct URL') : 'Final destination';
+    chain[chain.length - 1].method = chain.length === 1 ? 'direct' : 'final';
+  }
+
+  return chain;
+}
+
+// ── RENDER ──────────────────────────────────────────────────────────
+const LABEL_BADGE = {
+  'YouTube redirect':    'b-purple',
+  'YouTube short':       'b-purple',
+  'Google redirect':     'b-teal',
+  'Google AMP':          'b-teal',
+  'Facebook redirect':   'b-teal',
+  'Facebook share':      'b-teal',
+  'Instagram redirect':  'b-amber',
+  'Twitter/X short':     'b-gray',
+  'LinkedIn redirect':   'b-teal',
+  'LinkedIn short':      'b-teal',
+  'AliExpress affiliate':'b-amber',
+  'AliExpress redirect': 'b-amber',
+  'Amazon affiliate':    'b-amber',
+  'Telegram link':       'b-teal',
+  'WhatsApp link':       'b-green',
+  'Short link':          'b-teal',
+  'Direct URL':          'b-gray',
+  'Final destination':   'b-green',
+  'Redirect':            'b-gray',
+};
+
+function getBadge(item) {
+  const label = item.label || 'Redirect';
+  const bc = LABEL_BADGE[label] || 'b-gray';
+  return [label, bc];
+}
+
+function renderResults(chain) {
+  document.getElementById('statusBar').style.display = 'none';
+  document.getElementById('results').style.display = 'block';
+
+  const final = chain[chain.length - 1].url;
+  const finalDomain = getDomain(final);
+  const trust = trustScore(chain);
+  const trustLabel = trust === 'safe' ? '✓ Safe' : trust === 'warn' ? '⚠ Review' : '✕ Suspicious';
+  const trustClass = trust === 'safe' ? 'safe' : trust === 'warn' ? 'warn' : 'danger';
+
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-cell">
+      <div class="stat-label">Hops</div>
+      <div class="stat-value">${chain.length}</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">Trust</div>
+      <div class="stat-value ${trustClass}" style="font-size:16px;padding-top:4px;">${trustLabel}</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">Final domain</div>
+      <div class="stat-value small">${finalDomain}</div>
+    </div>
+  `;
+
+  const chainEl = document.getElementById('chain');
+  chainEl.innerHTML = '';
+  chain.forEach((item, i) => {
+    const isFinal = i === chain.length - 1;
+    const domain = getDomain(item.url);
+    const [label, bc] = getBadge(item);
+    const safeUrl = item.url.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    const div = document.createElement('div');
+    div.className = 'hop';
+    div.innerHTML = `
+      <div class="hop-spine">
+        <div class="hop-num ${isFinal ? 'is-final' : ''}">${i + 1}</div>
+        ${!isFinal ? '<div class="hop-line"></div>' : ''}
+      </div>
+      <div class="hop-content ${isFinal ? 'last' : ''}">
+        <div class="hop-meta">
+          <span class="badge ${bc}">${label}</span>
+          <span class="domain-tag">${domain}</span>
+        </div>
+        <div class="url-box" onclick="copyUrl('${safeUrl}',this)" title="Click to copy">
+          ${item.url}
+          <span class="copy-hint">⎘</span>
+        </div>
+      </div>
+    `;
+    chainEl.appendChild(div);
+  });
+
+  const fs = document.getElementById('finalSection');
+  fs.style.display = 'block';
+  document.getElementById('finalUrlText').textContent = final;
+  const esc = final.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  document.getElementById('finalActions').innerHTML = `
+    <button class="act-btn act-copy" onclick="copyUrl('${esc}',this)">⎘ Copy URL</button>
+    <a class="act-btn act-open" href="${final}" target="_blank" rel="noopener">↗ Open link</a>
+  `;
+
+  saveToHistory({ input: document.getElementById('urlInput').value.trim(), final, safe: trust === 'safe' });
+}
+
+// ── MAIN ────────────────────────────────────────────────────────────
+function setStatus(msg) {
+  const bar = document.getElementById('statusBar');
+  bar.style.display = 'flex';
+  document.getElementById('statusText').textContent = msg;
+}
+
+function showError(msg) {
+  document.getElementById('statusBar').style.display = 'none';
+  const bar = document.getElementById('errorBar');
+  bar.style.display = 'flex';
+  document.getElementById('errorText').textContent = msg;
+}
+
+async function analyzeUrl() {
+  const raw = document.getElementById('urlInput').value.trim();
+  if (!raw) return;
+
+  // Basic URL validation
+  try { new URL(raw); } catch {
+    showError('Please enter a valid URL starting with https:// or http://');
+    return;
+  }
+
+  document.getElementById('errorBar').style.display = 'none';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('finalSection').style.display = 'none';
+  const btn = document.getElementById('analyzeBtn');
+  btn.disabled = true;
+  setStatus('Analyzing…');
+
+  try {
+    const chain = await resolveChain(raw);
+    renderResults(chain);
+  } catch (e) {
+    showError('Could not resolve this URL. ' + (e.message || ''));
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function clearAll() {
+  document.getElementById('urlInput').value = '';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('errorBar').style.display = 'none';
+  document.getElementById('statusBar').style.display = 'none';
+  document.getElementById('finalSection').style.display = 'none';
+}
+
+function loadExample(k) {
+  document.getElementById('urlInput').value = EXAMPLES[k];
+  analyzeUrl();
+}
+
+function copyUrl(url, btn) {
+  navigator.clipboard.writeText(url).then(() => {
+    const orig = btn.innerHTML;
+    btn.innerHTML = btn.classList.contains('act-btn')
+      ? '✓ Copied!'
+      : url + '<span class="copy-hint">✓</span>';
+    setTimeout(() => btn.innerHTML = orig, 1600);
+  });
+}
+
+document.getElementById('urlInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') analyzeUrl();
+});
+
+// Load history on startup
+renderHistory();
+</script>
+</body>
+</html>
