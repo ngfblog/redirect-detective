@@ -42,3 +42,9 @@ One HTML file. Vanilla JS. Two Google Fonts. That's the whole thing.
 ## License
 
 MIT
+
+## ❤️ Support
+
+If my projects helped you or saved you time, consider supporting future development:
+
+👉 https://paypal.me/ShopNGF
