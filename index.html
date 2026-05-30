@@ -359,7 +359,7 @@
 
 <footer>
   Runs entirely in your browser — nothing is sent to any server.<br>
-  HTTP redirect resolution uses the <a href="https://unshorten.me" target="_blank" style="color:var(--muted);text-decoration:underline;">unshorten.me</a> public API.
+  HTTP redirect resolution uses <a href="https://unshorten.me" target="_blank" style="color:var(--muted);text-decoration:underline;">unshorten.me</a> with <a href="https://unshorten.it" target="_blank" style="color:var(--muted);text-decoration:underline;">unshorten.it</a> as fallback.
 </footer>
 
 <script>
@@ -584,6 +584,31 @@ function trustScore(chain) {
   return 'safe';
 }
 
+// ── HTTP FALLBACK RESOLUTION ────────────────────────────────────────
+async function resolveHttpRedirect(url) {
+  const APIS = [
+    async (u) => {
+      const r = await fetch(`https://unshorten.me/json/${encodeURIComponent(u)}`);
+      if (!r.ok) throw new Error('unshorten.me failed');
+      const d = await r.json();
+      return d.resolved_url && d.resolved_url !== u ? d.resolved_url : null;
+    },
+    async (u) => {
+      const r = await fetch(`https://unshorten.it/api/unshorten?url=${encodeURIComponent(u)}`);
+      if (!r.ok) throw new Error('unshorten.it failed');
+      const d = await r.json();
+      return d.resolved && d.resolved !== u ? d.resolved : null;
+    }
+  ];
+  for (const api of APIS) {
+    try {
+      const result = await api(url);
+      if (result) return result;
+    } catch {}
+  }
+  return null;
+}
+
 // ── RESOLUTION ──────────────────────────────────────────────────────
 async function resolveChain(startUrl) {
   const chain = [];
@@ -612,17 +637,12 @@ async function resolveChain(startUrl) {
 
     // Needs HTTP resolution
     chain.push({ url: current, label: detected.label, method: 'http' });
-    setStatus(`Resolving ${detected.label} via unshorten.me…`);
-    try {
-      const resp = await fetch(`https://unshorten.me/json/${encodeURIComponent(current)}`);
-      if (resp.ok) {
-        const data = await resp.json();
-        if (data.resolved_url && data.resolved_url !== current) {
-          current = data.resolved_url;
-          continue;
-        }
-      }
-    } catch {}
+    setStatus(`Resolving ${detected.label}…`);
+    const resolved = await resolveHttpRedirect(current);
+    if (resolved && resolved !== current) {
+      current = resolved;
+      continue;
+    }
     // Could not resolve further
     chain.push({ url: current, label: 'Final destination', method: 'final' });
     break;
