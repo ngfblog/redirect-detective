@@ -23,7 +23,7 @@ Resolves these client-side (instant, no API call):
 - Amazon affiliate links with `?tag=`
 - `wa.me`, `t.me`
 
-For everything else (`bit.ly`, `t.co`, `rb.gy`, `tinyurl` and ~20 more shorteners) it calls [unshorten.me](https://unshorten.me) to follow the HTTP redirect.
+For everything else (`bit.ly`, `t.co`, `rb.gy`, `tinyurl` and ~20 more shorteners) it calls [unshorten.me](https://unshorten.me) to follow the HTTP redirect, with [unshorten.it](https://unshorten.it) as fallback if the first one fails.
 
 ## How to use
 
