@@ -771,7 +771,7 @@ function renderResults(chain) {
   const barColor = safety.level === 'safe' ? 'var(--green)' : safety.level === 'warn' ? 'var(--amber)' : 'var(--red)';
   const barBg = safety.level === 'safe' ? 'rgba(74,222,128,0.07)' : safety.level === 'warn' ? 'rgba(251,191,36,0.07)' : 'rgba(248,113,113,0.07)';
   const barBorder = safety.level === 'safe' ? 'rgba(74,222,128,0.2)' : safety.level === 'warn' ? 'rgba(251,191,36,0.2)' : 'rgba(248,113,113,0.2)';
-  const vtUrl = 'https://www.virustotal.com/gui/url/search?query=' + encodeURIComponent(finalUrl);
+  const vtUrl = 'https://www.virustotal.com/gui/url/search?query=' + encodeURIComponent(final);
 
   document.getElementById('statsRow').innerHTML = `
     <div class="stat-cell">
