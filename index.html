@@ -771,7 +771,12 @@ function renderResults(chain) {
   const barColor = safety.level === 'safe' ? 'var(--green)' : safety.level === 'warn' ? 'var(--amber)' : 'var(--red)';
   const barBg = safety.level === 'safe' ? 'rgba(74,222,128,0.07)' : safety.level === 'warn' ? 'rgba(251,191,36,0.07)' : 'rgba(248,113,113,0.07)';
   const barBorder = safety.level === 'safe' ? 'rgba(74,222,128,0.2)' : safety.level === 'warn' ? 'rgba(251,191,36,0.2)' : 'rgba(248,113,113,0.2)';
-  const vtUrl = 'https://www.virustotal.com/gui/url/' + urlToVtId(final);
+  let vtUrl = '#';
+  urlToVtId(final).then(id => {
+    vtUrl = 'https://www.virustotal.com/gui/url/' + id;
+    const vtBtn = document.getElementById('vtSingleBtn');
+    if (vtBtn) vtBtn.href = vtUrl;
+  });
 
   document.getElementById('statsRow').innerHTML = `
     <div class="stat-cell">
@@ -798,7 +803,7 @@ function renderResults(chain) {
   safetyBar.innerHTML = `
     <i class="ti ${shieldIcon}" style="font-size:14px;color:${barColor};flex-shrink:0;" aria-hidden="true"></i>
     <span style="font-size:12px;color:var(--muted);flex:1;">${safety.reasons.join(' · ')}</span>
-    <a href="${vtUrl}" target="_blank" rel="noopener"
+    <a id="vtSingleBtn" href="#" target="_blank" rel="noopener"
       style="font-size:11.5px;padding:3px 10px;border:0.5px solid var(--border2);border-radius:100px;color:var(--muted);text-decoration:none;white-space:nowrap;flex-shrink:0;display:inline-flex;align-items:center;gap:4px;">
       <i class="ti ti-virus-search" style="font-size:11px;" aria-hidden="true"></i> Check on VirusTotal
     </a>
@@ -851,26 +856,20 @@ function renderResults(chain) {
   saveToHistory({ input: document.getElementById('urlInput').value.trim(), final, safe: safety.level === 'safe' });
 }
 
-function urlToVtId(url) {
-  try {
-    const bytes = new TextEncoder().encode(url);
-    let bin = '';
-    bytes.forEach(b => bin += String.fromCharCode(b));
-    return btoa(bin).replace(/=/g, '');
-  } catch {
-    return btoa(unescape(encodeURIComponent(url))).replace(/=/g, '');
-  }
+async function urlToVtId(url) {
+  const msgBuffer = new TextEncoder().encode(url);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function openAllVirusTotal(urls) {
-  urls.forEach((url, i) => {
+async function openAllVirusTotal(urls) {
+  for (let i = 0; i < urls.length; i++) {
+    const id = await urlToVtId(urls[i]);
     setTimeout(() => {
-      window.open(
-        'https://www.virustotal.com/gui/url/' + urlToVtId(url),
-        '_blank'
-      );
-    }, i * 400);
-  });
+      window.open('https://www.virustotal.com/gui/url/' + id, '_blank');
+    }, i * 500);
+  }
 }
 
 // ── MAIN ────────────────────────────────────────────────────────────
