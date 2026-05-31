@@ -252,6 +252,8 @@
     .act-copy:hover { background:rgba(124,106,247,.2); }
     .act-open { background:transparent; border:0.5px solid var(--border2); color:var(--muted); }
     .act-open:hover { background:var(--surface3); color:var(--text); }
+    .act-scan { background:rgba(251,191,36,0.1); border:0.5px solid rgba(251,191,36,0.3); color:var(--amber); }
+    .act-scan:hover { background:rgba(251,191,36,0.18); }
 
     /* ── HISTORY ── */
     .history-section { border-top:0.5px solid var(--border); }
@@ -600,8 +602,9 @@ function analyzeSafety(chain) {
     }
   } catch {}
 
-  // Known safe domain
-  if (SAFE_DOMAINS.some(s => d === s || d.endsWith('.'+s))) {
+  // Known safe domain — but only if HTTPS
+  const isHttp = score >= 30; // HTTP flag was set above
+  if (!isHttp && SAFE_DOMAINS.some(s => d === s || d.endsWith('.'+s))) {
     return { level: 'safe', reasons: ['HTTPS · Known safe domain · Short chain'] };
   }
 
@@ -768,7 +771,7 @@ function renderResults(chain) {
   const barColor = safety.level === 'safe' ? 'var(--green)' : safety.level === 'warn' ? 'var(--amber)' : 'var(--red)';
   const barBg = safety.level === 'safe' ? 'rgba(74,222,128,0.07)' : safety.level === 'warn' ? 'rgba(251,191,36,0.07)' : 'rgba(248,113,113,0.07)';
   const barBorder = safety.level === 'safe' ? 'rgba(74,222,128,0.2)' : safety.level === 'warn' ? 'rgba(251,191,36,0.2)' : 'rgba(248,113,113,0.2)';
-  const vtUrl = 'https://www.virustotal.com/gui/url/' + btoa(finalUrl).replace(/=/g,'');
+  const vtUrl = 'https://www.virustotal.com/gui/url/search?query=' + encodeURIComponent(finalUrl);
 
   document.getElementById('statsRow').innerHTML = `
     <div class="stat-cell">
@@ -796,7 +799,7 @@ function renderResults(chain) {
     <i class="ti ${shieldIcon}" style="font-size:14px;color:${barColor};flex-shrink:0;" aria-hidden="true"></i>
     <span style="font-size:12px;color:var(--muted);flex:1;">${safety.reasons.join(' · ')}</span>
     <a href="${vtUrl}" target="_blank" rel="noopener"
-      style="font-size:11.5px;padding:3px 10px;border:0.5px solid ${barBorder};border-radius:100px;color:${barColor};text-decoration:none;white-space:nowrap;flex-shrink:0;">
+      style="font-size:11.5px;padding:3px 10px;border:0.5px solid var(--border2);border-radius:100px;color:var(--muted);text-decoration:none;white-space:nowrap;flex-shrink:0;display:inline-flex;align-items:center;gap:4px;">
       <i class="ti ti-virus-search" style="font-size:11px;" aria-hidden="true"></i> Check on VirusTotal
     </a>
   `;
@@ -833,12 +836,30 @@ function renderResults(chain) {
   fs.style.display = 'block';
   document.getElementById('finalUrlText').textContent = final;
   const esc = final.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const allUrls = chain.map(h => h.url);
+  const scanAllJs = `openAllVirusTotal(${JSON.stringify(allUrls)})`;
+
   document.getElementById('finalActions').innerHTML = `
     <button class="act-btn act-copy" onclick="copyUrl('${esc}',this)">⎘ Copy URL</button>
     <a class="act-btn act-open" href="${final}" target="_blank" rel="noopener">↗ Open link</a>
+    <button class="act-btn act-scan" onclick="${scanAllJs.replace(/"/g,'&quot;')}">
+      <i class="ti ti-virus-search" style="font-size:12px;" aria-hidden="true"></i>
+      Scan all ${chain.length} hop${chain.length > 1 ? 's' : ''} on VirusTotal
+    </button>
   `;
 
   saveToHistory({ input: document.getElementById('urlInput').value.trim(), final, safe: safety.level === 'safe' });
+}
+
+function openAllVirusTotal(urls) {
+  urls.forEach((url, i) => {
+    setTimeout(() => {
+      window.open(
+        'https://www.virustotal.com/gui/url/search?query=' + encodeURIComponent(url),
+        '_blank'
+      );
+    }, i * 400);
+  });
 }
 
 // ── MAIN ────────────────────────────────────────────────────────────
