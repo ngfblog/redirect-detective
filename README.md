@@ -4,7 +4,7 @@
 
 Ever clicked a YouTube link in a video description and wondered where it actually goes? This tool shows you.
 
-Paste any redirect URL — YouTube, AliExpress affiliate, bit.ly, Facebook share link, whatever — and it traces the full chain down to the real destination.
+Paste any redirect URL — YouTube, AliExpress affiliate, bit.ly, Facebook share link, whatever — and it traces the full chain down to the real destination. Each hop is automatically checked for suspicious signals and you can verify the final URL on VirusTotal with one click.
 
 **[Try it →](https://ngfblog.github.io/redirect-detective)**
 
@@ -24,6 +24,18 @@ Resolves these client-side (instant, no API call):
 - `wa.me`, `t.me`
 
 For everything else (`bit.ly`, `t.co`, `rb.gy`, `tinyurl` and ~20 more shorteners) it calls [unshorten.me](https://unshorten.me) to follow the HTTP redirect, with [unshorten.it](https://unshorten.it) as fallback if the first one fails.
+
+## Safety checks
+
+Every hop in the chain is automatically scanned for:
+
+- HTTP instead of HTTPS
+- Typosquatting (e.g. `paypa1.com`, `arnazon.com`)
+- Suspicious TLDs (`.tk`, `.xyz`, `.ml` and more)
+- Numbers replacing letters in domain names
+- Unusually long redirect chains
+
+Each hop shows a 🟢 / 🟡 / 🔴 badge inline. The final destination can be verified on VirusTotal with one click — no account needed.
 
 ## How to use
 
