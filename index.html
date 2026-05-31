@@ -817,6 +817,11 @@ function renderResults(chain) {
     const [label, bc] = getBadge(item);
     const safeUrl = item.url.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     const div = document.createElement('div');
+    const hopSafety = analyzeSafety([item]);
+    const hopColor = hopSafety.level === 'safe' ? 'var(--green)' : hopSafety.level === 'warn' ? 'var(--amber)' : 'var(--red)';
+    const hopIcon = hopSafety.level === 'safe' ? 'ti-shield-check' : hopSafety.level === 'warn' ? 'ti-alert-triangle' : 'ti-shield-x';
+    const hopTitle = hopSafety.level === 'safe' ? 'Safe' : hopSafety.level === 'warn' ? 'Review' : 'Suspicious';
+
     div.className = 'hop';
     div.innerHTML = `
       <div class="hop-spine">
@@ -827,6 +832,9 @@ function renderResults(chain) {
         <div class="hop-meta">
           <span class="badge ${bc}">${label}</span>
           <span class="domain-tag">${domain}</span>
+          <span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 7px;border-radius:100px;background:transparent;color:${hopColor};border:0.5px solid ${hopColor};opacity:0.85;" title="${hopSafety.reasons.join(' · ')}">
+            <i class="ti ${hopIcon}" style="font-size:10px;" aria-hidden="true"></i>${hopTitle}
+          </span>
         </div>
         <div class="url-box" onclick="copyUrl('${safeUrl}',this)" title="Click to copy">
           ${item.url}
@@ -847,11 +855,28 @@ function renderResults(chain) {
   document.getElementById('finalActions').innerHTML = `
     <button class="act-btn act-copy" onclick="copyUrl('${esc}',this)">⎘ Copy URL</button>
     <a class="act-btn act-open" href="${final}" target="_blank" rel="noopener">↗ Open link</a>
-    <button class="act-btn act-scan" onclick="${scanAllJs.replace(/"/g,'&quot;')}">
+    <button class="act-btn act-scan" id="scanAllBtn" onclick="toggleScanList()">
       <i class="ti ti-virus-search" style="font-size:12px;" aria-hidden="true"></i>
       Scan all ${chain.length} hop${chain.length > 1 ? 's' : ''} on VirusTotal
     </button>
   `;
+
+  // Build async VT links for each hop
+  const scanListEl = document.getElementById('scanList');
+  scanListEl.innerHTML = '';
+  chain.forEach(async (item, i) => {
+    const id = await urlToVtId(item.url);
+    const vtHopUrl = 'https://www.virustotal.com/gui/url/' + id;
+    const row = document.createElement('a');
+    row.href = vtHopUrl;
+    row.target = '_blank';
+    row.rel = 'noopener';
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 14px;font-size:11.5px;font-family:var(--mono);color:var(--muted);text-decoration:none;border-bottom:0.5px solid var(--border);transition:background .12s;';
+    row.onmouseover = () => row.style.background = 'var(--surface3)';
+    row.onmouseout = () => row.style.background = '';
+    row.innerHTML = `<span style="color:var(--amber);font-family:var(--sans);flex-shrink:0;">Hop ${i+1}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${item.url}</span><i class="ti ti-external-link" style="font-size:12px;flex-shrink:0;" aria-hidden="true"></i>`;
+    scanListEl.appendChild(row);
+  });
 
   saveToHistory({ input: document.getElementById('urlInput').value.trim(), final, safe: safety.level === 'safe' });
 }
