@@ -336,6 +336,7 @@
   <!-- Results -->
   <div class="results" id="results">
     <div class="stats-grid" id="statsRow"></div>
+    <div id="safetyBar" style="display:none;padding:10px 20px;align-items:center;gap:8px;flex-wrap:wrap;border-top:0.5px solid transparent;"></div>
     <div class="sec-hdr">Redirect chain</div>
     <div class="chain-body" id="chain"></div>
     <div id="finalSection" style="display:none;">
@@ -573,15 +574,83 @@ function detectPlatform(url) {
   return null;
 }
 
-function trustScore(chain) {
+function analyzeSafety(chain) {
   const final = chain[chain.length - 1].url;
   const d = getDomain(final);
-  const SAFE = ['github.com','stackoverflow.com','wikipedia.org','google.com',
+  const reasons = [];
+  let score = 0;
+
+  const SAFE_DOMAINS = ['github.com','stackoverflow.com','wikipedia.org','google.com',
     'youtube.com','twitter.com','x.com','reddit.com','medium.com','npmjs.com',
-    'amazon.com','aliexpress.com','linkedin.com','instagram.com','facebook.com'];
-  if (SAFE.some(s => d === s || d.endsWith('.'+s))) return 'safe';
-  if (chain.length > 4) return 'warn';
-  return 'safe';
+    'amazon.com','amazon.co.uk','amazon.de','aliexpress.com','linkedin.com',
+    'instagram.com','facebook.com','tiktok.com','apple.com','microsoft.com',
+    'cloudflare.com','notion.so','dropbox.com','drive.google.com','docs.google.com'];
+
+  const SUSPICIOUS_TLDS = ['.xyz','.tk','.ml','.ga','.cf','.gq','.top','.click',
+    '.work','.loan','.date','.download','.racing','.win','.bid','.stream'];
+
+  const FREE_TLDS = ['.tk','.ml','.ga','.cf','.gq'];
+
+  // HTTPS check
+  try {
+    const u = new URL(final);
+    if (u.protocol === 'http:') {
+      score += 30;
+      reasons.push('HTTP only (no encryption)');
+    }
+  } catch {}
+
+  // Known safe domain
+  if (SAFE_DOMAINS.some(s => d === s || d.endsWith('.'+s))) {
+    return { level: 'safe', reasons: ['HTTPS · Known safe domain · Short chain'] };
+  }
+
+  // Suspicious TLD
+  const tld = '.' + d.split('.').pop();
+  if (FREE_TLDS.some(t => d.endsWith(t))) {
+    score += 40;
+    reasons.push('Free TLD (' + tld + ')');
+  } else if (SUSPICIOUS_TLDS.some(t => d.endsWith(t))) {
+    score += 25;
+    reasons.push('Suspicious TLD (' + tld + ')');
+  }
+
+  // Typosquatting check
+  const BRANDS = ['paypal','amazon','google','facebook','instagram','netflix',
+    'apple','microsoft','ebay','aliexpress','linkedin','twitter','youtube'];
+  const dClean = d.replace(/[0-9]/g,'').replace(/[-_.]/g,'');
+  for (const brand of BRANDS) {
+    if (dClean.includes(brand) && d !== brand + '.com') {
+      score += 50;
+      reasons.push('Possible typosquatting (' + brand + ')');
+      break;
+    }
+  }
+
+  // Numbers replacing letters (paypa1, g00gle)
+  if (/[a-z][0-9]|[0-9][a-z]/i.test(d.split('.')[0])) {
+    score += 20;
+    reasons.push('Numbers in domain name');
+  }
+
+  // Lots of hyphens
+  if ((d.match(/-/g) || []).length >= 3) {
+    score += 15;
+    reasons.push('Many hyphens in domain');
+  }
+
+  // Long chain
+  if (chain.length > 4) {
+    score += 20;
+    reasons.push('Long redirect chain (' + chain.length + ' hops)');
+  }
+
+  // Unknown domain with no flags — neutral
+  if (reasons.length === 0) reasons.push('Unknown domain · Verify before clicking');
+
+  if (score >= 45) return { level: 'danger', reasons };
+  if (score >= 20) return { level: 'warn', reasons };
+  return { level: 'safe', reasons: ['HTTPS · ' + (reasons[0] || 'No suspicious signals')] };
 }
 
 // ── HTTP FALLBACK RESOLUTION ────────────────────────────────────────
@@ -692,9 +761,14 @@ function renderResults(chain) {
 
   const final = chain[chain.length - 1].url;
   const finalDomain = getDomain(final);
-  const trust = trustScore(chain);
-  const trustLabel = trust === 'safe' ? '✓ Safe' : trust === 'warn' ? '⚠ Review' : '✕ Suspicious';
-  const trustClass = trust === 'safe' ? 'safe' : trust === 'warn' ? 'warn' : 'danger';
+  const safety = analyzeSafety(chain);
+  const trustLabel = safety.level === 'safe' ? '✓ Safe' : safety.level === 'warn' ? '⚠ Review' : '✕ Suspicious';
+  const trustClass = safety.level === 'safe' ? 'safe' : safety.level === 'warn' ? 'warn' : 'danger';
+  const shieldIcon = safety.level === 'safe' ? 'ti-shield-check' : safety.level === 'warn' ? 'ti-alert-triangle' : 'ti-shield-x';
+  const barColor = safety.level === 'safe' ? 'var(--green)' : safety.level === 'warn' ? 'var(--amber)' : 'var(--red)';
+  const barBg = safety.level === 'safe' ? 'rgba(74,222,128,0.07)' : safety.level === 'warn' ? 'rgba(251,191,36,0.07)' : 'rgba(248,113,113,0.07)';
+  const barBorder = safety.level === 'safe' ? 'rgba(74,222,128,0.2)' : safety.level === 'warn' ? 'rgba(251,191,36,0.2)' : 'rgba(248,113,113,0.2)';
+  const vtUrl = 'https://www.virustotal.com/gui/url/' + btoa(finalUrl).replace(/=/g,'');
 
   document.getElementById('statsRow').innerHTML = `
     <div class="stat-cell">
@@ -702,13 +776,29 @@ function renderResults(chain) {
       <div class="stat-value">${chain.length}</div>
     </div>
     <div class="stat-cell">
-      <div class="stat-label">Trust</div>
-      <div class="stat-value ${trustClass}" style="font-size:16px;padding-top:4px;">${trustLabel}</div>
+      <div class="stat-label">Safety</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
+        <div style="width:8px;height:8px;border-radius:50%;background:${barColor};flex-shrink:0;"></div>
+        <span style="font-size:13px;font-weight:500;color:${barColor};">${trustLabel}</span>
+      </div>
     </div>
     <div class="stat-cell">
       <div class="stat-label">Final domain</div>
       <div class="stat-value small">${finalDomain}</div>
     </div>
+  `;
+
+  const safetyBar = document.getElementById('safetyBar');
+  safetyBar.style.display = 'flex';
+  safetyBar.style.background = barBg;
+  safetyBar.style.borderTopColor = barBorder;
+  safetyBar.innerHTML = `
+    <i class="ti ${shieldIcon}" style="font-size:14px;color:${barColor};flex-shrink:0;" aria-hidden="true"></i>
+    <span style="font-size:12px;color:var(--muted);flex:1;">${safety.reasons.join(' · ')}</span>
+    <a href="${vtUrl}" target="_blank" rel="noopener"
+      style="font-size:11.5px;padding:3px 10px;border:0.5px solid ${barBorder};border-radius:100px;color:${barColor};text-decoration:none;white-space:nowrap;flex-shrink:0;">
+      <i class="ti ti-virus-search" style="font-size:11px;" aria-hidden="true"></i> Check on VirusTotal
+    </a>
   `;
 
   const chainEl = document.getElementById('chain');
@@ -748,7 +838,7 @@ function renderResults(chain) {
     <a class="act-btn act-open" href="${final}" target="_blank" rel="noopener">↗ Open link</a>
   `;
 
-  saveToHistory({ input: document.getElementById('urlInput').value.trim(), final, safe: trust === 'safe' });
+  saveToHistory({ input: document.getElementById('urlInput').value.trim(), final, safe: safety.level === 'safe' });
 }
 
 // ── MAIN ────────────────────────────────────────────────────────────
